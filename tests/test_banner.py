@@ -9,6 +9,8 @@ disabled TLS - have to be present and have to be readable.
 
 from __future__ import annotations
 
+import pytest
+
 from capat.core.config import DEFAULT_USER_AGENT, Config
 from capat.core.matching import Matcher, SuccessCriteria
 from capat.core.profile import LoginProfile, SolverSettings
@@ -216,7 +218,60 @@ def test_the_banner_names_its_author_under_the_version() -> None:
     """The author line is what a reader of a screenshot uses to find the
     project. Without this the line could be dropped in a refactor and nobody
     would notice until the next screenshot was taken."""
-    block = banner.render("0.1.0")
+    # A version the project will never carry, like the other render() test: the
+    # assertion is about where the author line sits, so pinning it to the real
+    # version only means editing this test at every release.
+    block = banner.render("9.9.9")
     lines = [line for line in block.split("\n") if line.strip()]
-    version_at = next(i for i, line in enumerate(lines) if line.strip() == "v0.1.0")
+    version_at = next(i for i, line in enumerate(lines) if line.strip() == "v9.9.9")
     assert lines[version_at + 1].strip() == f"by {banner.AUTHOR}"
+
+
+def test_the_solver_line_names_every_preprocessing_setting_that_was_changed() -> None:
+    """Two bench runs differing only in --median and --threshold printed the same
+    Solver line and different accuracies, so neither number could be reproduced
+    from its own screenshot. scale/threshold/median have non-zero defaults, so
+    they are compared against those rather than tested for truth."""
+    tuned = SolverSettings(name="easyocr", min_saturation=15, median=2, threshold=200)
+    line = rows_as_dict(banner.bench_rows("corpus", 30, tuned, case_sensitive=False))["Solver"]
+    assert "median 2" in line
+    assert "threshold 200" in line
+    assert "min-saturation 15" in line
+
+
+def test_the_solver_line_stays_quiet_about_untouched_preprocessing() -> None:
+    """Every default on one line would push the config block off-screen and bury
+    the settings the operator actually chose."""
+    line = rows_as_dict(
+        banner.bench_rows("corpus", 30, SolverSettings(name="ddddocr"), case_sensitive=False)
+    )["Solver"]
+    assert line == "ddddocr"
+
+
+def test_a_non_default_captcha_retry_budget_earns_a_row() -> None:
+    """It decides how many passwords come back counted as untested, so a report
+    reader needs it to read the credential result."""
+    rows = rows_as_dict(
+        banner.audit_rows(profile(), Config(), ["credentials"], wordlist="w.txt", captcha_retries=8)
+    )
+    assert rows["CAPTCHA retries"] == "8 per password"
+
+
+def test_the_default_captcha_retry_budget_does_not() -> None:
+    """Rows that only restate a default make the block harder to scan."""
+    rows = rows_as_dict(banner.audit_rows(profile(), Config(), ["credentials"], wordlist="w.txt"))
+    assert "CAPTCHA retries" not in rows
+
+
+def test_case_sensitive_is_offered_only_where_something_is_compared() -> None:
+    """bench holds the expected answer and judges against it. audit hands the
+    answer to the target, and solve just prints it, so the flag was a switch
+    with nothing behind it on both."""
+    from capat.cli import build_parser
+
+    parser = build_parser()
+    assert parser.parse_args(["bench", "corpus", "--case-sensitive"]).case_sensitive
+    for argv in (["audit", "-u", "https://x.test/login"], ["solve", "a.png"]):
+        assert not hasattr(parser.parse_args(argv), "case_sensitive")
+        with pytest.raises(SystemExit):
+            parser.parse_args([*argv, "--case-sensitive"])

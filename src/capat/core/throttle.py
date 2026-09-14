@@ -72,22 +72,32 @@ def rate_limit_finding(
     from capat.core.result import Finding, Severity
 
     wait = f" It asked for {seconds:.0f}s before the next request." if seconds else ""
-    # Reads as "... 3 of 25 samples in" when a sample count is known and
-    # "... 3 attempts in" when it is not; the two used to share one template
-    # and the second came out as "... 3 in".
-    progress = f"{done} of {asked} samples" if asked else f"{done} attempts"
     at = f" while fetching {where}" if where else ""
-    # A limiter that trips on the first attempt is the interesting case, and
-    # "after 1 attempts" in a client report undercuts the rest of the page.
-    tries = "1 attempt" if done == 1 else f"{done} attempts"
+    # A limiter that trips early is the interesting case, so the counts that
+    # say so have to read as English: "after 1 attempts" undercuts the rest of
+    # the page, and a check throttled before it finished anything reported
+    # "after 0 attempts", which reads as the tool having done nothing rather
+    # than as the strongest result the check can return.
+    if done == 0:
+        tries = "on the first request"
+        progress = " before any attempt completed"
+    else:
+        tries = f"after {'1 attempt' if done == 1 else f'{done} attempts'}"
+        # "... 3 of 25 samples in" when a sample count is known, "... 3
+        # attempts in" when it is not; the two used to share one template and
+        # the second came out as "... 3 in".
+        if asked:
+            progress = f", {done} of {asked} samples in"
+        else:
+            progress = f", {done} attempt{'' if done == 1 else 's'} in"
     return Finding(
         module=module,
-        title=f"target rate-limited the run after {tries}",
+        title=f"target rate-limited the run {tries}",
         target=target_url,
         severity=Severity.INFO,
         description=(
-            f"The application returned HTTP {status} and stopped answering{at}, "
-            f"{progress} in.{wait} The measurement stopped there rather than continue against "
+            f"The application returned HTTP {status} and stopped answering{at}"
+            f"{progress}.{wait} The measurement stopped there rather than continue against "
             "a limiter. This is a control working: rate limiting per account and per source "
             "is what actually raises the cost of automated guessing, and any rate reported "
             "here is a smaller sample because of it - report both together."

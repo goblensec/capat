@@ -22,8 +22,10 @@ capat bench corpus --solver ddddocr
 ```
 
 ```
-  label   predicted   match   conf   sec
-  T29MG   T29M6       no      0.41   0.63
+  label   predicted   conf   sec
+  T29MG   T29M6       0.41   0.63
+
+  the 1 missed of 2; --show-all lists every row
 
   1/2 solved exactly = 50.0% accuracy   (character similarity 90.0%)
   0.58s mean per solve  ->  ~3,100 correct solves/hour, single process

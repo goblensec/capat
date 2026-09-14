@@ -139,6 +139,10 @@ class CorpusBenchmark:
         for image in images:
             result = await self._solver.solve(image.data)
             predicted, label = result.text, image.label
+            # The exact/inexact rule is SolveResult.matches, so there is one
+            # definition of "correct" rather than a second copy here. The
+            # casefolded pair is still needed for the similarity ratio, which
+            # is a distance and not a verdict.
             if not self._case_sensitive:
                 predicted_cmp, label_cmp = predicted.casefold(), label.casefold()
             else:
@@ -147,7 +151,7 @@ class CorpusBenchmark:
                 Attempt(
                     label=label,
                     predicted=predicted,
-                    correct=predicted_cmp == label_cmp,
+                    correct=result.matches(label, self._case_sensitive),
                     similarity=difflib.SequenceMatcher(None, label_cmp, predicted_cmp).ratio(),
                     confidence=result.confidence,
                     elapsed=result.elapsed,

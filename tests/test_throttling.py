@@ -136,3 +136,46 @@ def test_a_limiter_that_trips_on_the_first_attempt_reads_as_one_attempt():
     assert "after 1 attempt" in rate_limit_finding("m", "https://h/login", 429, 1).title
     assert "after 1 attempts" not in rate_limit_finding("m", "https://h/login", 429, 1).title
     assert "after 3 attempts" in rate_limit_finding("m", "https://h/login", 429, 3).title
+
+
+def test_a_limiter_that_trips_before_any_attempt_is_not_reported_as_zero_attempts() -> None:
+    """A check throttled on its first request is the strongest result it can
+    return. It read "after 0 attempts", which a client reads as the tool having
+    done nothing at all."""
+    from capat.core.throttle import rate_limit_finding
+
+    f = rate_limit_finding("captcha-gate", "https://x.test/login", 429, done=0)
+    assert "0 attempts" not in f.title
+    assert "0 attempts" not in f.description
+    assert "on the first request" in f.title
+    assert "before any attempt completed" in f.description
+
+
+def test_attempt_counts_still_read_as_english() -> None:
+    """The singular and the sample-count forms share one template with the
+    zero case, so they break together."""
+    from capat.core.throttle import rate_limit_finding
+
+    one = rate_limit_finding("captcha-gate", "https://x.test/login", 429, done=1)
+    assert "after 1 attempt" in one.title
+    assert "1 attempts" not in one.title + one.description
+    many = rate_limit_finding("captcha-solve-rate", "https://x.test/login", 429, done=3, asked=40)
+    assert "after 3 attempts" in many.title
+    assert "3 of 40 samples in" in many.description
+
+
+def test_every_module_reports_a_throttle_through_the_shared_helper() -> None:
+    """solve-rate kept a private copy for a 429 on the login response while using
+    the shared helper for a 429 during a fetch, so one run could emit two
+    wordings for one condition - and only one of them got the fix that stopped
+    it saying "after 0 attempts"."""
+    import inspect
+
+    from capat.modules import credential_audit, gate_enforcement, solve_rate
+
+    for module in (solve_rate, gate_enforcement, credential_audit):
+        source = inspect.getsource(module)
+        assert "rate_limit_finding" in source
+        assert "rate-limited the run" not in source, (
+            f"{module.__name__} builds its own throttle finding; call rate_limit_finding"
+        )

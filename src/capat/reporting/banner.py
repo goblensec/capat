@@ -23,6 +23,7 @@ from capat.core.profile import (
 
 __all__ = [
     "AUTHOR",
+    "DEFAULT_CAPTCHA_RETRIES",
     "audit_rows",
     "bench_rows",
     "collect_rows",
@@ -31,6 +32,9 @@ __all__ = [
     "render_config",
     "solve_rows",
 ]
+
+DEFAULT_CAPTCHA_RETRIES = 3
+"""Mirrors the --captcha-retries default, so a row only appears above it."""
 
 ART = r"""
                           __
@@ -85,6 +89,18 @@ def _solver_line(tuning: SolverSettings) -> str:
         extra.append(f"min-saturation {tuning.min_saturation}")
     if tuning.dilate:
         extra.append(f"dilate {tuning.dilate}")
+    # scale/threshold/median have non-zero defaults, so "was it set" is a
+    # comparison rather than a truth test. They were omitted here until two
+    # `bench` runs that differed only in --median and --threshold printed the
+    # same Solver line and different accuracies - the banner has to name the
+    # recipe a number was measured under, or the number cannot be reproduced.
+    defaults = SolverSettings()
+    if tuning.scale != defaults.scale:
+        extra.append(f"scale {tuning.scale:g}")
+    if tuning.threshold != defaults.threshold:
+        extra.append(f"threshold {tuning.threshold}")
+    if tuning.median != defaults.median:
+        extra.append(f"median {tuning.median}")
     if tuning.invert:
         extra.append("inverted")
     return f"{tuning.name} ({', '.join(extra)})" if extra else tuning.name
@@ -98,6 +114,7 @@ def audit_rows(
     wordlist: str | None = None,
     users: str | None = None,
     order: str = "spray",
+    captcha_retries: int = DEFAULT_CAPTCHA_RETRIES,
     output: str | None = None,
     fmt: str = "table",
 ) -> list[tuple[str, str]]:
@@ -130,6 +147,10 @@ def audit_rows(
                 + (" - LOCKOUT PROTECTION OFF" if config.ignore_lockout else ""),
             )
         )
+        if captcha_retries != DEFAULT_CAPTCHA_RETRIES:
+            # It decides how many passwords come back counted as untested, so
+            # a non-default value is part of reading the credential result.
+            rows.append(("CAPTCHA retries", f"{captcha_retries} per password"))
 
     rows.append(("Rate", f"{config.requests_per_second:g}/s, {config.concurrency} in flight"))
     rows.append(("Timeout", f"{config.timeout:g}s"))

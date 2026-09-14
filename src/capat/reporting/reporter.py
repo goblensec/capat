@@ -126,25 +126,39 @@ class BenchReporter:
         self._table(report, show_all)
 
     def _table(self, report: BenchReport, show_all: bool) -> None:
+        # Without --show-all the correct rows are dropped, so every `match`
+        # cell reads "no" under a headline accuracy that is not zero. The
+        # title has to say the table is the misses, or it reads as the whole
+        # corpus contradicting the summary line below it - and a column that
+        # can only hold one value is not worth its width.
+        rows = [a for a in report.attempts if show_all or not a.correct]
         table = Table(title=f"capat: {report.engine} vs. labeled corpus")
         table.add_column("label")
         table.add_column("predicted")
-        table.add_column("match")
+        if show_all:
+            table.add_column("match")
         table.add_column("conf", justify="right")
         table.add_column("sec", justify="right")
 
-        for a in report.attempts:
-            if not show_all and a.correct:
-                continue
-            table.add_row(
+        for a in rows:
+            cells = [
                 escape(a.label),
                 escape(a.predicted) if a.predicted else "[dim]-[/dim]",
-                "[green]yes[/green]" if a.correct else "[red]no[/red]",
-                f"{a.confidence:.2f}",
-                f"{a.elapsed:.2f}",
-            )
+            ]
+            if show_all:
+                cells.append("[green]yes[/green]" if a.correct else "[red]no[/red]")
+            cells += [f"{a.confidence:.2f}", f"{a.elapsed:.2f}"]
+            table.add_row(*cells)
         if table.row_count:
             self._console.print(table)
+            if not show_all:
+                # Printed under the table rather than in its title: the title
+                # is centred on the table's own width, which is narrow enough
+                # here to wrap the sentence over three lines.
+                self._console.print(
+                    f"[dim]the {len(rows)} missed of {report.total}; "
+                    f"--show-all lists every row[/dim]"
+                )
 
         self._console.print(
             f"\n[bold]{report.solved}/{report.total} solved exactly[/bold] "

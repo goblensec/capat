@@ -170,3 +170,50 @@ def test_a_finding_naming_a_pip_extra_still_names_it_after_rendering() -> None:
     assert "capat[ddddocr]" in out, "rich ate the extra the operator has to type"
     assert "capat[all-solvers]" in out
     assert "p[ass]word" in out, "a bracket in a password must survive the report"
+
+
+def test_the_bench_table_says_it_is_showing_only_the_misses() -> None:
+    """Correct rows are dropped unless --show-all, so every `match` cell reads
+    "no" under a headline accuracy that is not zero. Unlabelled, the table reads
+    as the whole corpus contradicting the summary line under it."""
+    import io
+
+    from capat.corpus import Attempt, BenchReport
+    from capat.reporting.reporter import BenchReporter
+
+    report = BenchReport(
+        engine="ddddocr",
+        attempts=[
+            Attempt("AB12", "AB12", True, 1.0, 0.9, 0.02, "a.png"),
+            Attempt("CD34", "C034", False, 0.5, 0.9, 0.02, "b.png"),
+        ],
+    )
+    buf = io.StringIO()
+    BenchReporter(buf).render(report, fmt="table")
+    out = buf.getvalue()
+    assert "1 missed of 2" in out
+    assert "--show-all" in out
+    assert "match" not in out  # a column that can only say "no" is not worth its width
+    assert "1/2 solved exactly" in out
+
+
+def test_show_all_restores_the_match_column() -> None:
+    """With every row present the column carries information again."""
+    import io
+
+    from capat.corpus import Attempt, BenchReport
+    from capat.reporting.reporter import BenchReporter
+
+    report = BenchReport(
+        engine="ddddocr",
+        attempts=[
+            Attempt("AB12", "AB12", True, 1.0, 0.9, 0.02, "a.png"),
+            Attempt("CD34", "C034", False, 0.5, 0.9, 0.02, "b.png"),
+        ],
+    )
+    buf = io.StringIO()
+    BenchReporter(buf).render(report, fmt="table", show_all=True)
+    out = buf.getvalue()
+    assert "match" in out
+    assert "yes" in out and "no" in out
+    assert "missed" not in out and "--show-all" not in out

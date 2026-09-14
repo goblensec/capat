@@ -232,12 +232,11 @@ usage: capat audit [-h] [-p PROFILE] [-n N] [--skip-solve-rate] [-M MODULE] [-d]
                    [--lockout-threshold N] [--ignore-lockout] [-f FMT] [-o FILE] [--no-banner]
                    [-m LEVEL] [-s NAME|PATH] [--charset CHARS] [--charset-file PATH] [-l N]
                    [--scale N] [--threshold N] [--median N] [--min-saturation N] [--dilate N]
-                   [--invert] [--case-sensitive] [-u URL] [-c URL] [-fu URL] [-X M] [-e ENC]
-                   [-H 'Name: Value'] [-b 'N=V; N2=V2'] [-F name=value] [-E name=src:key]
-                   [--username NAME] [--username-field NAME] [--password-field NAME]
-                   [--csrf-field NAME] [-cr KIND] [-cm M] [-ci PATH] [-cd PATH] [-cn NAME]
-                   [-cv NAME] [-cH 'Name: Value'] [-cf MATCH] [-af MATCH] [-ok MATCH] [-ou FRAGMENT]
-                   [-P PATH]
+                   [--invert] [-u URL] [-c URL] [-fu URL] [-X M] [-e ENC] [-H 'Name: Value']
+                   [-b 'N=V; N2=V2'] [-F name=value] [-E name=src:key] [--username NAME]
+                   [--username-field NAME] [--password-field NAME] [--csrf-field NAME] [-cr KIND]
+                   [-cm M] [-ci PATH] [-cd PATH] [-cn NAME] [-cv NAME] [-cH 'Name: Value']
+                   [-cf MATCH] [-af MATCH] [-ok MATCH] [-ou FRAGMENT] [-P PATH]
 
 capat - evidence that image CAPTCHAs are not a bot control.
 Use only against systems you are authorized to test.
@@ -300,7 +299,6 @@ SOLVER OPTIONS (tuning; save with -P and reuse):
                                   60)
   --dilate N                      thicken strokes, odd kernel (default 0, try 3)
   --invert                        invert after thresholding
-  --case-sensitive                compare answers case-sensitively
 
 TARGET (instead of, or on top of, --profile):
   -u, --url URL                   login URL the form posts to

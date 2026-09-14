@@ -40,9 +40,6 @@ class Config:
     one below the commonest policy (5) rather than level with it."""
 
     ignore_lockout: bool = False
-    case_sensitive: bool = False
-    """Whether a solved CAPTCHA must match the label's case. Most CAPTCHA
-    implementations compare case-insensitively."""
 
     def __post_init__(self) -> None:
         if self.concurrency < 1:

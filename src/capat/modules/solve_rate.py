@@ -11,7 +11,7 @@ from capat.core.target import Target
 from capat.core.throttle import Throttled, rate_limit_finding
 from capat.http.client import HttpClient
 from capat.modules.base import Module
-from capat.modules.login_flow import Attempt, LoginFlow
+from capat.modules.login_flow import LoginFlow
 from capat.solvers.base import Solver, SolverUnavailable
 
 
@@ -123,7 +123,14 @@ class CaptchaSolveRate(Module):
             if attempt.throttled:
                 # Everything after this point would measure the limiter.
                 return [
-                    self._throttled(target, attempt, solved + wrong, self._samples),
+                    rate_limit_finding(
+                        self.name,
+                        target.url,
+                        attempt.status_code,
+                        solved + wrong,
+                        asked=self._samples,
+                        seconds=attempt.retry_after,
+                    ),
                     *self._report(target, solved, wrong, unknown, latencies, confidences, samples),
                 ]
 
@@ -295,39 +302,6 @@ class CaptchaSolveRate(Module):
                 if record.get("outcome") == Outcome.CAPTCHA_FAILURE.value
             ][:8],
         }
-
-    def _throttled(self, target: Target, attempt: Attempt, done: int, asked: int) -> Finding:
-        """Being rate limited is the good news, and belongs in the report."""
-        wait = (
-            f" It asked for {attempt.retry_after:.0f}s before the next request."
-            if attempt.retry_after
-            else ""
-        )
-        return Finding(
-            module=self.name,
-            title=f"target rate-limited the run after {done} attempts",
-            target=target.url,
-            severity=Severity.INFO,
-            description=(
-                f"The application returned HTTP {attempt.status_code} and stopped answering "
-                f"login attempts {done} of {asked} samples in.{wait} The measurement stopped "
-                "there rather than continue against a limiter. This is a control working: "
-                "rate limiting per account and per source is what actually raises the cost of "
-                "automated guessing, and the solve rate below is a smaller sample because of "
-                "it - report both together."
-            ),
-            remediation=(
-                "Nothing to fix on the target. Lower --rps and re-run for a larger sample; "
-                "note in the report where the limit began, since that threshold is the real "
-                "measure of how much automation this login tolerates."
-            ),
-            evidence={
-                "status_code": attempt.status_code,
-                "attempts_before_limit": done,
-                "samples_requested": asked,
-                "retry_after_seconds": attempt.retry_after,
-            },
-        )
 
     def _random_password_accepted(self, target: Target, final_url: str) -> Finding:
         return Finding(

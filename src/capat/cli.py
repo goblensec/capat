@@ -122,7 +122,18 @@ def _add_banner_flag(parser: argparse._ActionsContainer) -> None:
     )
 
 
-def _add_solver_flags(parser: argparse.ArgumentParser) -> None:
+def _add_solver_flags(parser: argparse.ArgumentParser, *, compares: bool = False) -> None:
+    """Tuning flags shared by audit, bench and solve.
+
+    `compares` gates --case-sensitive, which only bench can act on: it is the
+    one command that holds an expected answer to judge against. audit hands
+    the answer to the target and lets it judge; solve prints the answer and
+    stops. Offering the flag there would be a switch with nothing behind it.
+
+    -l/--length stays on all three by contrast, because whether it does
+    anything depends on the engine chosen at runtime by -s, not on the
+    subcommand - that one the help string has to carry.
+    """
     p = parser.add_argument_group("SOLVER OPTIONS (tuning; save with -P and reuse)")
     p.add_argument(
         "-s",
@@ -171,12 +182,14 @@ def _add_solver_flags(parser: argparse.ArgumentParser) -> None:
         help="thicken strokes, odd kernel (default 0, try 3)",
     )
     p.add_argument("--invert", action="store_true", default=None, help="invert after thresholding")
-    p.add_argument(
-        "--case-sensitive",
-        action="store_true",
-        default=None,
-        help="compare answers case-sensitively",
-    )
+    if compares:
+        p.add_argument(
+            "--case-sensitive",
+            action="store_true",
+            default=None,
+            help="a prediction must match the label's case to count (default: case-insensitive, "
+            "which is how most CAPTCHA implementations compare)",
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -345,7 +358,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("-o", "--output", help="write the report to a file instead of stdout")
     bench.add_argument("--show-all", action="store_true", help="list correct solves too")
     _add_banner_flag(bench)
-    _add_solver_flags(bench)
+    _add_solver_flags(bench, compares=True)
 
     # ---- collect -----------------------------------------------------------
     collect = sub.add_parser(
@@ -540,12 +553,10 @@ def cmd_audit(args: argparse.Namespace) -> int:
         samples=args.samples,
         lockout_threshold=args.lockout_threshold,
         ignore_lockout=args.ignore_lockout,
-        case_sensitive=bool(args.case_sensitive),
     )
     profile = resolve_profile(args, config)
 
     tuning = profile.solver
-    config.case_sensitive = tuning.case_sensitive
     solver = build_solver(
         tuning.name,
         preprocessor=build_preprocessor(tuning),
@@ -599,6 +610,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
                     wordlist=args.passwords,
                     users=args.users,
                     order=args.order,
+                    captcha_retries=args.captcha_retries,
                     output=args.output,
                     fmt=args.format,
                 ),

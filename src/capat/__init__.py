@@ -13,7 +13,7 @@ from capat.core.result import Finding, Severity
 from capat.core.target import Target
 from capat.core.template import Extractor
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "Config",
