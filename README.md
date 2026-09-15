@@ -64,6 +64,9 @@ Output is a table, JSON or Markdown.
 *A deliberately broken test application: three enforcement failures and a 58%
 solve rate, with the reasoning printed under each finding.*
 
+Why I built it, and what the numbers look like on a real corpus:
+**[Your CAPTCHA Is Not a Bot Control. Here Is How to Measure It.](https://github.com/goblensec/capat/blob/main/blog/post.md)**
+
 - [Installation](#installation)
 - [Quick start](#quick-start)
 - [Help](#usage)
